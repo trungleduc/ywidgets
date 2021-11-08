@@ -58,14 +58,11 @@ export class WidgetsModel extends YDocument<WidgetsChange> {
    */
   private _contentObserver = (event: Y.YMapEvent<any>): void => {
     const changes: WidgetsChange = {};
-    // Checks which object changed and propagates them.
-    if (event.keysChanged.has('value')) {
-      changes.value = this._content.get('value');
-    }
-
-    if (event.keysChanged.has('content')) {
-      changes.contentChange = this._content.get('content');
-    }
+    const value: { [key: string]: any } = {};
+    event.keysChanged.forEach((key) => {
+      value[key] = this._content.get(key);
+    });
+    changes.value = value;
 
     this._changed.emit(changes);
   };

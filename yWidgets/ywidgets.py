@@ -22,5 +22,4 @@ class YWidget(Box):
     value = Unicode('YWidget').tag(sync=True)
 
     def __init__(self, children=(), **kwargs):
-        print(children)
         super().__init__(children=children, **kwargs)

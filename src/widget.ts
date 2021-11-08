@@ -34,45 +34,50 @@ export class YWidgetModel extends BoxModel {
     }
   ): void {
     super.initialize(attributes, options);
-    this._onSharedModelChanged = this._onSharedModelChanged.bind(this);
-    this._sharedModel = WidgetsModel.create();
-    if (!this._provider) {
-      console.log('creating new provider');
+    console.log('this.id', this.comm.comm_id);
 
-      this._provider = YWidgetModel.docProviderFactory({
+    this._onSharedModelChanged = this._onSharedModelChanged.bind(this);
+    if (!YWidgetModel._provider) {
+      console.log('creating new provider');
+      YWidgetModel._sharedModel = WidgetsModel.create();
+
+      YWidgetModel._provider = YWidgetModel.docProviderFactory({
         path: 'model-ui',
         contentType: 'ipywidgets',
-        ymodel: this._sharedModel,
+        ymodel: YWidgetModel._sharedModel,
       });
     }
-    this._id = (Math.random() + 1).toString(36).substring(7);
-    console.log('called', this._id);
 
-    this._sharedModel.changed.connect(this._onSharedModelChanged);
+    YWidgetModel._sharedModel.changed.connect(this._onSharedModelChanged);
     const children: Array<BoxModel> = this.get('children');
     children.forEach((child, idx) => {
       child.on('change:value', (model, change) => {
-        this._sharedModel.transact(() => {
-          this._sharedModel.setContent('value', {
-            change,
-            id: this._id,
-            index: idx,
-          });
-          console.log('done transact', change);
+        YWidgetModel._sharedModel.transact(() => {
+          YWidgetModel._sharedModel.setContent(
+            `${this.comm.comm_id}@${child.comm.comm_id}`,
+            change
+          );
         });
       });
     });
   }
 
-  _onSharedModelChanged(sender: WidgetsModel, changes: WidgetsChange): void {
+  _onSharedModelChanged(sender: WidgetsModel, data: WidgetsChange): void {
+    const changes = data.value;
     console.log('model changed', changes);
-    if (changes.value['id'] !== this._id) {
-      console.log('updating', this._id);
-
-      const { change, index } = changes.value;
-      const child: BoxModel = this.get('children')[index];
-      child.set('value', change);
-      child.save_changes();
+    for (const key in changes) {
+      const commIds = key.split('@');
+      if (this.comm.comm_id === commIds[0]) {
+        const childChanges = changes[key];
+        const children: Array<BoxModel> = this.get('children');
+        children.forEach((child) => {
+          const childCommId = child.comm.comm_id;
+          if (childCommId === commIds[1]) {
+            child.set('value', childChanges);
+            child.save_changes();
+          }
+        });
+      }
     }
   }
 
@@ -83,10 +88,14 @@ export class YWidgetModel extends BoxModel {
   static view_module = MODULE_NAME; // Set to null if no view
   static view_module_version = MODULE_VERSION;
   static docProviderFactory: IDocumentProviderFactory;
-
-  private _sharedModel: WidgetsModel;
-  private _id: string;
-  private _provider: IDocumentProvider;
+  static _provider: IDocumentProvider;
+  static _sharedModel: WidgetsModel;
 }
 
-export class YWidgetView extends BoxView {}
+export class YWidgetView extends BoxView {
+  remove() {
+    if (this.model.comm) {
+      this.model.close(false);
+    }
+  }
+}
