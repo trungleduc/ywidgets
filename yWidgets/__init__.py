@@ -4,7 +4,7 @@
 # Copyright (c) Duc Trung Le.
 # Distributed under the terms of the Modified BSD License.
 
-from .example import ExampleWidget
+from .ywidgets import YWidget
 from ._version import __version__, version_info
 from .handlers import setup_handlers
 

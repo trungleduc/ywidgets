@@ -7,6 +7,8 @@ import { Widget } from '@phosphor/widgets';
 
 import { IJupyterWidgetRegistry } from '@jupyter-widgets/base';
 
+import { IDocumentProviderFactory } from '@jupyterlab/docprovider';
+
 import * as widgetExports from './widget';
 
 import { MODULE_NAME, MODULE_VERSION } from './version';
@@ -18,7 +20,7 @@ const EXTENSION_ID = 'yWidgets:plugin';
  */
 const examplePlugin: IPlugin<Application<Widget>, void> = {
   id: EXTENSION_ID,
-  requires: [IJupyterWidgetRegistry],
+  requires: [IJupyterWidgetRegistry, IDocumentProviderFactory],
   activate: activateWidgetExtension,
   autoStart: true,
 } as unknown as IPlugin<Application<Widget>, void>;
@@ -32,11 +34,13 @@ export default examplePlugin;
  */
 function activateWidgetExtension(
   app: Application<Widget>,
-  registry: IJupyterWidgetRegistry
+  registry: IJupyterWidgetRegistry,
+  docProviderFactory: IDocumentProviderFactory
 ): void {
+  widgetExports.YWidgetModel.docProviderFactory = docProviderFactory;
   registry.registerWidget({
     name: MODULE_NAME,
     version: MODULE_VERSION,
-    exports: widgetExports,
+    exports: widgetExports as any,
   });
 }

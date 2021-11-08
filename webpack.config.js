@@ -34,7 +34,6 @@ module.exports = [
     module: {
       rules: rules
     },
-    devtool: 'source-map',
     externals,
     resolve,
   },
@@ -58,7 +57,6 @@ module.exports = [
         library: "yWidgets",
         publicPath: 'https://unpkg.com/yWidgets@' + version + '/dist/'
     },
-    devtool: 'source-map',
     module: {
         rules: rules
     },
@@ -83,7 +81,6 @@ module.exports = [
     module: {
       rules: rules
     },
-    devtool: 'source-map',
     externals,
     resolve,
   }

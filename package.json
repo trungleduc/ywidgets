@@ -29,7 +29,7 @@
     "url": "https://github.com//yWidgets"
   },
   "scripts": {
-    "build": "yarn run build:lib && yarn run build:nbextension && yarn run build:labextension:dev",
+    "build": "yarn run build:lib && yarn run build:labextension:dev",
     "build:prod": "yarn run build:lib && yarn run build:nbextension && yarn run build:labextension",
     "build:labextension": "jupyter labextension build .",
     "build:labextension:dev": "jupyter labextension build --development True .",
@@ -45,11 +45,14 @@
     "test": "jest",
     "watch": "npm-run-all -p watch:*",
     "watch:lib": "tsc -w",
-    "watch:nbextension": "webpack --watch --mode=development",
     "watch:labextension": "jupyter labextension watch ."
   },
   "dependencies": {
-    "@jupyter-widgets/base": "^1.1.10 || ^2.0.0 || ^3.0.0 || ^4.0.0"
+    "@jupyter-widgets/base": "^1.1.10 || ^2.0.0 || ^3.0.0 || ^4.0.0",
+    "@jupyter-widgets/controls": "^3.0.0",
+    "@jupyterlab/docprovider": "^3.2.2",
+    "@jupyterlab/shared-models": "^3.2.2",
+    "yjs": "^13.5.17"
   },
   "devDependencies": {
     "@babel/core": "^7.5.0",
@@ -86,6 +89,10 @@
     "outputDir": "yWidgets/labextension/",
     "sharedPackages": {
       "@jupyter-widgets/base": {
+        "bundled": false,
+        "singleton": true
+      },
+      "@jupyterlab/shared-models": {
         "bundled": false,
         "singleton": true
       }
