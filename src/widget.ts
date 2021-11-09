@@ -2,7 +2,7 @@
 // Distributed under the terms of the Modified BSD License.
 
 import { BoxModel, BoxView } from '@jupyter-widgets/controls';
-import { WidgetsModel, WidgetsChange } from './shared_model';
+import { SharedWidgetModel, WidgetsChange } from './shared_model';
 import { MODULE_NAME, MODULE_VERSION } from './version';
 import {
   IDocumentProviderFactory,
@@ -10,6 +10,7 @@ import {
 } from '@jupyterlab/docprovider';
 // Import the CSS
 import '../css/widget.css';
+import { uuid, WidgetModel } from '@jupyter-widgets/base';
 
 export class YWidgetModel extends BoxModel {
   defaults() {
@@ -34,45 +35,51 @@ export class YWidgetModel extends BoxModel {
     }
   ): void {
     super.initialize(attributes, options);
-    console.log('this.id', this.comm.comm_id);
-
+    this._childStateLock = new WeakMap<WidgetModel, boolean>();
+    this._clientId = uuid();
     this._onSharedModelChanged = this._onSharedModelChanged.bind(this);
     if (!YWidgetModel._provider) {
-      console.log('creating new provider');
-      YWidgetModel._sharedModel = WidgetsModel.create();
+      YWidgetModel._sharedModel = SharedWidgetModel.create();
 
       YWidgetModel._provider = YWidgetModel.docProviderFactory({
-        path: 'model-ui',
+        path: 'shared-model',
         contentType: 'ipywidgets',
         ymodel: YWidgetModel._sharedModel,
       });
     }
 
     YWidgetModel._sharedModel.changed.connect(this._onSharedModelChanged);
-    const children: Array<BoxModel> = this.get('children');
-    children.forEach((child, idx) => {
+    const children: Array<WidgetModel> = this.get('children');
+    children.forEach((child) => {
       child.on('change:value', (model, change) => {
-        YWidgetModel._sharedModel.transact(() => {
-          YWidgetModel._sharedModel.setContent(
-            `${this.comm.comm_id}@${child.comm.comm_id}`,
-            change
-          );
-        });
+        const lock = this._childStateLock.get(child);
+        if (lock) {
+          this._childStateLock.set(child, false);
+        } else {
+          YWidgetModel._sharedModel.transact(() => {
+            YWidgetModel._sharedModel.setContent(
+              `${this._clientId}@${child.comm.comm_id}`,
+              change
+            );
+          });
+        }
       });
     });
   }
 
-  _onSharedModelChanged(sender: WidgetsModel, data: WidgetsChange): void {
+  _onSharedModelChanged(sender: SharedWidgetModel, data: WidgetsChange): void {
     const changes = data.value;
-    console.log('model changed', changes);
     for (const key in changes) {
       const commIds = key.split('@');
-      if (this.comm.comm_id === commIds[0]) {
+      const parentClientId = commIds[0];
+      const childCommId = commIds[1];
+      if (this._clientId !== parentClientId) {
         const childChanges = changes[key];
         const children: Array<BoxModel> = this.get('children');
+
         children.forEach((child) => {
-          const childCommId = child.comm.comm_id;
-          if (childCommId === commIds[1]) {
+          if (child.comm.comm_id === childCommId) {
+            this._childStateLock.set(child, true);
             child.set('value', childChanges);
             child.save_changes();
           }
@@ -89,13 +96,10 @@ export class YWidgetModel extends BoxModel {
   static view_module_version = MODULE_VERSION;
   static docProviderFactory: IDocumentProviderFactory;
   static _provider: IDocumentProvider;
-  static _sharedModel: WidgetsModel;
+  static _sharedModel: SharedWidgetModel;
+
+  private _childStateLock: WeakMap<WidgetModel, boolean>;
+  private _clientId: string;
 }
 
-export class YWidgetView extends BoxView {
-  remove() {
-    if (this.model.comm) {
-      this.model.close(false);
-    }
-  }
-}
+export class YWidgetView extends BoxView {}

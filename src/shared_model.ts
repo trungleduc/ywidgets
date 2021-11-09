@@ -7,7 +7,7 @@ export type WidgetsChange = {
   value?: any;
 };
 
-export class WidgetsModel extends YDocument<WidgetsChange> {
+export class SharedWidgetModel extends YDocument<WidgetsChange> {
   constructor() {
     super();
     // Creating a new shared object and listen to its changes
@@ -27,8 +27,8 @@ export class WidgetsModel extends YDocument<WidgetsChange> {
    *
    * @returns The sharedModel instance
    */
-  public static create(): WidgetsModel {
-    return new WidgetsModel();
+  public static create(): SharedWidgetModel {
+    return new SharedWidgetModel();
   }
 
   /**
