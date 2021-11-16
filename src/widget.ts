@@ -2,15 +2,11 @@
 // Distributed under the terms of the Modified BSD License.
 
 import { BoxModel, BoxView } from '@jupyter-widgets/controls';
-import { SharedWidgetModel, WidgetsChange } from './shared_model';
+
 import { MODULE_NAME, MODULE_VERSION } from './version';
-import {
-  IDocumentProviderFactory,
-  IDocumentProvider,
-} from '@jupyterlab/docprovider';
 // Import the CSS
 import '../css/widget.css';
-import { uuid, WidgetModel } from '@jupyter-widgets/base';
+import { WidgetModel } from '@jupyter-widgets/base';
 
 export class YWidgetModel extends BoxModel {
   defaults() {
@@ -36,56 +32,56 @@ export class YWidgetModel extends BoxModel {
   ): void {
     super.initialize(attributes, options);
     this._childStateLock = new WeakMap<WidgetModel, boolean>();
-    this._clientId = uuid();
-    this._onSharedModelChanged = this._onSharedModelChanged.bind(this);
-    if (!YWidgetModel._provider) {
-      YWidgetModel._sharedModel = SharedWidgetModel.create();
+    const allChildren = this.getChildrenRecursively();
 
-      YWidgetModel._provider = YWidgetModel.docProviderFactory({
-        path: 'shared-model',
-        contentType: 'ipywidgets',
-        ymodel: YWidgetModel._sharedModel,
-      });
-    }
+    this.on(
+      'msg:custom',
+      (msg, buffers) => {
+        const { method, child_id, trait, value } = msg;
+        if (method !== 'ywidget_sync') {
+          return;
+        }
 
-    YWidgetModel._sharedModel.changed.connect(this._onSharedModelChanged);
+        for (const child of allChildren) {
+          if (child_id === child.model_id) {
+            const lock = this._childStateLock.get(child);
+
+            if (!lock) {
+              child.set(trait, value);
+            } else {
+              this._childStateLock.set(child, false);
+            }
+            break;
+          }
+        }
+      },
+      this
+    );
     const children: Array<WidgetModel> = this.get('children');
     children.forEach((child) => {
-      child.on('change:value', (model, change) => {
-        const lock = this._childStateLock.get(child);
-        if (lock) {
-          this._childStateLock.set(child, false);
+      child.on('change', (model, change) => {
+        if (Object.keys(change).length > 0) {
+          this._childStateLock.set(model, true);
         } else {
-          YWidgetModel._sharedModel.transact(() => {
-            YWidgetModel._sharedModel.setContent(
-              `${this._clientId}@${child.comm.comm_id}`,
-              change
-            );
-          });
+          this._childStateLock.set(model, false);
         }
       });
     });
   }
 
-  _onSharedModelChanged(sender: SharedWidgetModel, data: WidgetsChange): void {
-    const changes = data.value;
-    for (const key in changes) {
-      const commIds = key.split('@');
-      const parentClientId = commIds[0];
-      const childCommId = commIds[1];
-      if (this._clientId !== parentClientId) {
-        const childChanges = changes[key];
-        const children: Array<BoxModel> = this.get('children');
-
-        children.forEach((child) => {
-          if (child.comm.comm_id === childCommId) {
-            this._childStateLock.set(child, true);
-            child.set('value', childChanges);
-            child.save_changes();
-          }
-        });
+  getChildrenRecursively(): Array<WidgetModel> {
+    const all: Array<WidgetModel> = [...this.get('children')];
+    const inner = (model: WidgetModel, arr: Array<WidgetModel>): void => {
+      const innerChildren: Array<WidgetModel> = model.get('children');
+      if (innerChildren) {
+        arr.push(...innerChildren);
+        innerChildren.forEach((innerChild) => inner(innerChild, arr));
       }
+    };
+    for (const item of this.get('children')) {
+      inner(item, all);
     }
+    return all;
   }
 
   static model_name = 'YWidgetModel';
@@ -94,12 +90,8 @@ export class YWidgetModel extends BoxModel {
   static view_name = 'YWidgetView'; // Set to null if no view
   static view_module = MODULE_NAME; // Set to null if no view
   static view_module_version = MODULE_VERSION;
-  static docProviderFactory: IDocumentProviderFactory;
-  static _provider: IDocumentProvider;
-  static _sharedModel: SharedWidgetModel;
 
   private _childStateLock: WeakMap<WidgetModel, boolean>;
-  private _clientId: string;
 }
 
 export class YWidgetView extends BoxView {}

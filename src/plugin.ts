@@ -37,7 +37,6 @@ function activateWidgetExtension(
   registry: IJupyterWidgetRegistry,
   docProviderFactory: IDocumentProviderFactory
 ): void {
-  widgetExports.YWidgetModel.docProviderFactory = docProviderFactory;
   registry.registerWidget({
     name: MODULE_NAME,
     version: MODULE_VERSION,

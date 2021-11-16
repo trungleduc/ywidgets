@@ -6,7 +6,6 @@
 
 from .ywidgets import YWidget
 from ._version import __version__, version_info
-from .handlers import setup_handlers
 
 
 def _jupyter_labextension_paths():
@@ -28,14 +27,3 @@ def _jupyter_nbextension_paths():
         }
     ]
 
-
-def _jupyter_server_extension_points():
-    return [{"module": "yWidgets"}]
-
-
-def _load_jupyter_server_extension(server_app):
-    url_path = "ywidgets"
-    setup_handlers(server_app.web_app, url_path)
-    server_app.log.info(
-        f"Registered yWidgets extension at URL path /{url_path}"
-    )
